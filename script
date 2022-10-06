@@ -1,0 +1,108 @@
+// outcome: build queries, grab data, push to sheet
+
+function main() {
+  // copy this sheet https://docs.google.com/spreadsheets/d/1fCh6qvG-OhqogQKVez4X7KdOjiDR1cp9GvOQ2sn-Yjk/copy
+  // enter the url below
+  let ss = SpreadsheetApp.openByUrl(' '); // enter the url of your sheet here !!!
+  
+  // define commonly used query elements. wrap with spaces for safety
+  let title = ' segments.product_title ';
+  let id = ' segments.product_item_id ';
+  let cost = ' metrics.cost_micros ';
+  let name = ' campaign.name ';
+  let conv = ' metrics.conversions '; 
+  let value = ' metrics.conversions_value '; // can't get values to work
+  let fromShop = ' FROM shopping_performance_view ';
+  let date_and_cost = ' segments.date DURING LAST_30_DAYS AND metrics.cost_micros > 0 ';
+  let order = ' ORDER BY metrics.cost_micros DESC ';
+  
+  let z = [title, id, cost, conv]
+  let zeroQuery = 'SELECT ' + z.join(',') + fromShop + ' WHERE ' + date_and_cost + ' AND metrics.conversions = 0 '+ order;
+
+  let c = [title, id, cost, conv, value] // add value
+  let convQuery = 'SELECT ' + c.join(',') + fromShop + ' WHERE ' + date_and_cost + ' ' + order;
+
+  let n = [name, title, id, cost, conv, value] // add name
+  let nameQuery = 'SELECT ' + n.join(',') + fromShop + ' WHERE ' + date_and_cost + ' ' + order;
+  
+  let ca = [name, cost, conv, value]
+  let campQuery = 'SELECT ' + ca.join(',') + ', metrics.video_views, metrics.average_cpv ' +
+      ' FROM campaign ' +
+      ' WHERE ' + date_and_cost + ' AND campaign.name LIKE "%Performance%" '; // change to match campaign naming convention
+ 
+  runQuery(zeroQuery, ss.getSheetByName('zero_conv'));
+  runQuery(convQuery, ss.getSheetByName('with_conv'));
+  runNameQuery(nameQuery, ss.getSheetByName('with_name'));
+  runCampQuery(campQuery, ss.getSheetByName('camp_raw')); 
+  
+}
+
+
+function runQuery(q,sh) {
+  let response = AdsApp.search(q,sh);
+  let data = [];
+  while (response.hasNext()) {
+    let row = response.next();  
+  
+    let cost = 0;
+    let conv = 0;
+    let value = "";
+ 
+ // there's always one row where segments = undefined
+    let id = 'n/a';
+    let title = 'n/a';
+
+     if (row.segments != undefined) {
+      id = row.segments.productItemId;
+      title = row.segments.productTitle
+      cost = row.metrics.costMicros / 1e6;  
+      conv = row.metrics.conversions;
+      value = row.metrics.conversions_value;
+     }
+
+   data.push([id,title,cost,conv,value]);
+
+  }  
+  data.unshift(['id','title','cost','conv','value']) // add headers  
+  sh.clearContents(); // delete old data first
+  let exportData = sh.getRange(1,1,data.length,data[0].length).setValues(data);
+}
+ 
+
+function runNameQuery(q,sh) { 
+  let response = AdsApp.search(q,sh);
+  let data = [];
+  while (response.hasNext()) {
+    let row = response.next();  
+
+    let cost = 0;
+    let conv = 0;
+    let value = 0;
+
+ // there's always one row where segments = undefined
+    let id = 'n/a';
+    let title = 'n/a';
+    let name = 'n/a';
+
+     if (row.segments != undefined) {
+      id = row.segments.productItemId;
+      title = row.segments.productTitle;
+      name = row.campaign.name
+      cost = row.metrics.costMicros / 1000000;  
+      conv = row.metrics.conversions;
+      value = row.metrics.conversions_value;
+     }
+
+   data.push([name,id,title,cost,conv,value]);
+  }  
+
+  data.unshift(['name','id','title','cost','conv','value']) 
+  sh.clearContents(); 
+  let exportData = sh.getRange(1,1,data.length,data[0].length).setValues(data);
+}
+
+
+function runCampQuery(q,sh) {
+  const report = AdsApp.report(q);
+  report.exportToSheet(sh);  
+}
