@@ -4,9 +4,7 @@
 // outcome: build queries, grab data, push to sheet - 30 day version
 //
 // step 1: create a copy of this sheet first https://docs.google.com/spreadsheets/d/1B7N1XbESpPhSbidtk7D3To2_2YTFeJqdTMzooN4sN5A/copy
-// enter url of YOUR sheet in line 11 between the single quotes
-//
-// then change the naming convention on line 16 to match your pMax campaigns, again between the single quotes
+// enter url of YOUR sheet in line 12 between the single quotes
 //
 
 function main() {
