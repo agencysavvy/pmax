@@ -1,0 +1,100 @@
+// copyright Luuk Fiets 2022
+// for more resources, please visit happyhorizon.com
+//
+// outcome: build queries, grab data, push to sheet - 30 day version
+//
+// step 1: create a copy of this sheet first https://docs.google.com/spreadsheets/d/1WOtUmwjuwlUoo8_itsV79e9rs2-bGGZ8Tc-8BhL94S4/copy
+// enter url of YOUR sheet in line 12 between the single quotes
+//
+
+function main() {
+
+  let ss = SpreadsheetApp.openByUrl('');   // enter url of your sheet here
+
+  // don't change anything below this line *************************
+
+  let accounts = AdsManagerApp.accounts().get();
+  console.log(`Accounts to process: ${accounts.totalNumEntities()}`);
+
+  // Prepare sheets with headers rows and clear old data rows
+  const campaignDataSheet = ss.getSheetByName('campaignData');
+  campaignDataSheet.getRange('A1:K1').setValues([['account name','account id','acc+campaign id','campaign name','campaign total spend','campaign video spend','campaign shopping spend','other spend','video spend share','shopping spend share','other spend share']]);
+  campaignDataSheet.getRange('A2:K').clearContent();
+  SpreadsheetApp.flush();
+
+  while (accounts.hasNext()) {
+    AdsManagerApp.select(accounts.next());
+    const accountId = AdsApp.currentAccount().getCustomerId();
+    let accountName = accountId;    
+    try {
+      accountName = AdsApp.currentAccount().getName();
+    }
+    catch(e) {
+    }
+    
+    let pMaxCampaignIds = [];
+    let campaignDataReportRows = AdsApp.search(`
+    SELECT campaign.name, campaign.id, metrics.cost_micros, metrics.video_views, metrics.average_cpv
+    FROM campaign
+    WHERE segments.date
+    DURING LAST_30_DAYS
+    AND campaign.advertising_channel_type = "PERFORMANCE_MAX"
+    AND metrics.cost_micros > 0
+    ORDER BY campaign.name`);    
+
+    let campaignOutputData = [];
+    while (campaignDataReportRows.hasNext()) {
+      let reportRow = campaignDataReportRows.next();
+      pMaxCampaignIds.push(reportRow.campaign.id);
+      // The last column is for campaign shopping spend and this is set to 0
+      // In the productDataReport we will see if there are actual costs for shopping
+      campaignOutputData.push([accountName, accountId, `${accountId}+${reportRow.campaign.id}`, reportRow.campaign.name, reportRow.metrics.costMicros, reportRow.metrics.videoViews * (reportRow.metrics.averageCpv || 0), 0]);
+    }
+
+    // If the campaign output data report is empty, go to next account
+    // In that case the next query won't give back results
+    if (campaignOutputData.length === 0) {
+      continue
+    }
+
+    let productDataReportRows = AdsApp.search(`
+    SELECT campaign.name, campaign.id, metrics.cost_micros
+    FROM shopping_performance_view
+    WHERE segments.date
+    DURING LAST_30_DAYS
+    AND campaign.id IN ('${pMaxCampaignIds.join(`','`)}')
+    AND metrics.cost_micros > 0
+    ORDER BY campaign.name`);
+
+    let productOutputData = [];
+    while (productDataReportRows.hasNext()) {
+      let reportRow = productDataReportRows.next();
+      productOutputData.push([accountName, accountId, reportRow.campaign.name, reportRow.campaign.id, reportRow.metrics.costMicros]);
+    }
+
+    let mergedCampaignData = campaignOutputData;
+
+    if (productOutputData.length > 0) {
+      mergedCampaignData = campaignOutputData.map(row => {
+        let matchingProductDataRow = productOutputData.find(productDataRow => `${accountId}+${productDataRow[3]}` === row[2]);
+        if (matchingProductDataRow) {
+          return [row[0], row[1], row[2], row[3], row[4], row[5], matchingProductDataRow[4]];
+        } else {
+          // If not matching row is found, return the original row
+          return row;
+        }
+      });
+    }
+
+    SpreadsheetApp.flush();
+    campaignDataSheet.getRange(campaignDataSheet.getLastRow()+1, 1, mergedCampaignData.length, mergedCampaignData[0].length).setValues(mergedCampaignData);
+  } // end of while
+
+  SpreadsheetApp.flush();
+  campaignDataSheet.getRange('H2:K2').setFormulas([['=ARRAYFORMULA(IF(A2:A="";"";E2:E-F2:F-G2:G))','=ARRAYFORMULA(IF(A2:A="";"";F2:F/E2:E))','=ARRAYFORMULA(IF(A2:A="";"";G2:G/E2:E))','=ARRAYFORMULA(IF(A2:A="";"";H2:H/E2:E))']]);
+  campaignDataSheet.getRange('A2:D').setNumberFormat('@');
+  campaignDataSheet.getRange('E2:H').setNumberFormat('0');
+  campaignDataSheet.getRange('I2:K').setNumberFormat('0.00%');
+  ss.getSheetByName('account totals').getRange('A1').setFormula(`=QUERY(campaignData!A:K;"select A, SUM(F)/SUM(E), SUM(G)/SUM(E), SUM(H)/SUM(E) where not A is null GROUP BY A label SUM(F)/SUM(E) 'video spend share', SUM(G)/SUM(E) 'shopping spend share', SUM(H)/SUM(E) 'other spend share'")`);
+  console.log('Finished. Please have a look at your spreadsheet.');
+}
