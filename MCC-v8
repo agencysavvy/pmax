@@ -1,0 +1,111 @@
+// copyright Mike Rhodes 2023 (c)
+// for more training & resources to help you get great results from google ads head to AgencySavvy.com :)
+//
+// Yes we also manage accounts - just email the team hello@websavvy.com.au for more info
+// or connect with me on LinkedIn at https://www.linkedin.com/in/websavvy/
+//
+//
+// PLEASE NOTE: this script is designed for PMax campaigns in MCC accounts with a product feed (ie ecommerce accounts ONLY)
+// Because all the data is held at the Listing Group level, it’s IMPOSSIBLE to get additional data for Lead Gen accounts
+// Please yell at Google, not me :)
+//
+//
+
+// version 8 MCC script (added split between Display & Search - thanks Tobias Hink for all your help! Look him up - the guy's a genius https://www.linkedin.com/in/tobias-hink/
+//
+//
+//
+// INSTRUCTIONS:         ——— PLEASE READ ———
+// 
+// COPY this template Google Sheet:  
+// https://docs.google.com/spreadsheets/d/1igTja6inzVKh_yvQ5t_lv6EvRtaUYlFqNES-gmx0woI/copy
+//
+// now grab the URL of YOUR sheet & enter it below in the line (34) that starts 'let e =' (put the URL between the single quotes)
+//
+// name your script: WebSavvy: MCC pMax charts v8 (updates daily)
+// name your sheet: {MCC name} - pMax charts v8 (updates daily)
+//
+// authorise, save & run your script
+// once it’s all working, set the schedule to run daily
+//
+// thanks for reading :)
+
+function main(){
+let e=SpreadsheetApp.openByUrl(" ") // <-- put your sheet url over there
+
+
+
+
+let t=e.getSheetByName("r_c"),s=e.getSheetByName("r_ca"),a=e.getSheetByName("r_a"),i=e.getSheetByName("r_ag");t.getRange("A2:K").clearContent(),s.getRange("A2:I").clearContent(),a.getRange("A2:K").clearContent(),i.getRange("A2:H").clearContent();let n=AdsManagerApp.accounts().get();for(;n.hasNext();){AdsManagerApp.select(n.next());let c=AdsApp.currentAccount().getCustomerId(),r=c;try{r=AdsApp.currentAccount().getName()}catch(g){}let o=[],m=AdsApp.search(`
+    SELECT 
+    campaign.name, 
+    campaign.id, 
+    metrics.impressions,
+    metrics.clicks,
+    metrics.cost_micros,
+    metrics.conversions,
+    metrics.conversions_value,
+    metrics.video_views, 
+    metrics.average_cpv
+
+    FROM campaign
+    WHERE segments.date DURING LAST_30_DAYS
+    AND campaign.advertising_channel_type = "PERFORMANCE_MAX" 
+    AND metrics.cost_micros > 0
+    ORDER BY campaign.id
+    `),u=[];for(;m.hasNext();){let l=m.next(),{resourceName:p,name:h,id:R}=l.campaign,{costMicros:d,impressions:A,clicks:N,conversions:E,conversionsValue:v,videoViews:y,averageCpv:D}=l.metrics;o.push(R),u.push([r,c,h,R,d/1e6,A,N,E,v,y,D/1e6])}if(u.length>0&&t.getRange(t.getLastRow()+1,1,u.length,u[0].length).setValues(u),0===u.length)continue;let S=AdsApp.search(`
+    SELECT 
+    campaign.name,
+    campaign.id, 
+    metrics.impressions,
+    metrics.clicks,
+    metrics.cost_micros,
+    metrics.conversions,
+    metrics.conversions_value,
+    segments.asset_interaction_target.asset, 
+    segments.asset_interaction_target.interaction_on_this_asset
+    
+    FROM campaign
+    WHERE segments.date DURING LAST_30_DAYS
+    AND campaign.advertising_channel_type = "PERFORMANCE_MAX" 
+    AND segments.asset_interaction_target.interaction_on_this_asset != "TRUE"
+    AND metrics.cost_micros > 0
+    ORDER BY campaign.id
+    `),$=[];for(;S.hasNext();){let f=S.next(),{name:x,id:I}=f.campaign,{assetInteractionTarget:{asset:_}}=f.segments,{costMicros:C,impressions:L,clicks:O,conversions:T,conversionsValue:V}=f.metrics;$.push([r,x,I,_,C/1e6,L,O,T,V])}$.length>0&&s.getRange(s.getLastRow()+1,1,$.length,$[0].length).setValues($);let b=AdsApp.search(`
+    SELECT 
+    campaign.name, 
+    campaign.id, 
+    asset_group.id, 
+    asset_group.name, 
+    asset_group.status, 
+    asset_group_listing_group_filter.type, 
+    metrics.impressions,
+    metrics.clicks,
+    metrics.cost_micros,
+    metrics.conversions,
+    metrics.conversions_value
+    
+    FROM asset_group_product_group_view 
+    WHERE segments.date DURING LAST_30_DAYS 
+    AND asset_group_listing_group_filter.type != "SUBDIVISION" 
+    AND campaign.id IN ('${o.join("','")}')
+    AND metrics.cost_micros > 0
+    ORDER BY campaign.id
+    `),B=[];for(;b.hasNext();){let M=b.next(),{name:w,id:F,status:U}=M.assetGroup,{costMicros:Y,impressions:G,clicks:H,conversions:W,conversionsValue:k}=M.metrics;B.push([r,M.campaign.name,M.campaign.id,w,F,U,Y/1e6,G,H,W,k])}B.length>0&&a.getRange(a.getLastRow()+1,1,B.length,B[0].length).setValues(B);let j=AdsApp.search(`
+    SELECT 
+    campaign.name, 
+    campaign.id, 
+    asset_group.id, 
+    asset_group.name, 
+    asset.resource_name,
+    asset_group_asset.field_type,
+    asset.source,
+    asset.name,
+    asset.text_asset.text,
+    asset.image_asset.full_size.url,
+    asset.youtube_video_asset.youtube_video_title,
+    asset.youtube_video_asset.youtube_video_id
+ 
+    FROM asset_group_asset 
+    WHERE campaign.id IN ('${o.join("','")}')
+    `),z=[];for(;j.hasNext();){let K=j.next(),P="",X="",q="";K.asset.imageAsset&&(P=K.asset.imageAsset.fullSize.url),K.asset.youtubeVideoAsset&&(X=K.asset.youtubeVideoAsset.youtubeVideoId,q=K.asset.youtubeVideoAsset.youtubeVideoTitle);let{resourceName:J,source:Q,name:Z}=K.asset,{fieldType:ee}=K.assetGroupAsset;z.push([r,J,ee,Q,P,X,q,Z])}z.length>0&&i.getRange(i.getLastRow()+1,1,z.length,z[0].length).setValues(z)}}
