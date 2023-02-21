@@ -35,7 +35,7 @@
 
 function main() {
 
-  let ss = SpreadsheetApp.openByUrl('');          // enter the URL of YOUR sheet over there <—
+  let ss = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/1WXSzqIZDS5WdY6JqWkqtAgxl_yZI7V81jpLKqAscQYI/');          // enter the URL of YOUR sheet over there <—
 
 // no need to touch any code below this line ——————————————————————————
 
