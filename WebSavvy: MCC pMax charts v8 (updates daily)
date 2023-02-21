@@ -31,7 +31,7 @@
 // thanks for reading :)
 
 function main(){
-let e=SpreadsheetApp.openByUrl(" ") // <-- put your sheet url over there
+let e=SpreadsheetApp.openByUrl("https://docs.google.com/spreadsheets/d/1WXSzqIZDS5WdY6JqWkqtAgxl_yZI7V81jpLKqAscQYI/edit#gid=556095781") // <-- put your sheet url over there
 
 
 
