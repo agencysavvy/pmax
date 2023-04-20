@@ -115,7 +115,7 @@ function main() {
       ' FROM campaign ' +
       ' WHERE ' + date30 + pMaxOnly + order ; 
   
-  let dv = [campName, aIdCamp, cost, conv, value, views, cpv, impr, chType, interAsset] // inter by day
+  let dv = [segDate, campName, aIdCamp, cost, conv, value, views, cpv, impr, chType, interAsset] // inter by day
   let dvQuery = 'SELECT ' + dv.join(',') + 
       ' FROM campaign ' +
       ' WHERE ' + date30 + pMaxOnly + notInter + order ; 
