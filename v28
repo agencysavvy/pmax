@@ -1,4 +1,5 @@
 // v28 - additional 180 day product data on new tab r_prod_t_180
+// cmake a copy https://docs.google.com/spreadsheets/d/1aGOBOLNUjEIwwlYuS0D3fcIimRnzGdLSJxVd9rHOQ0E/copy
 
 function main() {
   let ss = SpreadsheetApp.openByUrl(''); //  v28
