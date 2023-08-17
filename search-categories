@@ -1,0 +1,122 @@
+// -------------------------
+// User Configuration Section
+// -------------------------
+// Please enter your spreadsheet URL between the quotes below.
+let ss = SpreadsheetApp.openByUrl('YOUR_SPREADSHEET_URL_HERE');
+
+// Set to false if you want search categories for ALL campaigns, not just PERFORMANCE_MAX
+let pmaxOnly = true; 
+
+// Don't change the code below this line.
+// -------------------------
+
+ss.rename('Mike Rhodes - Search Category Insights');
+
+function formatCampaignsSheet(sheet) {
+    // Bold the first row
+    sheet.getRange(1, 1, 1, sheet.getLastColumn()).setFontWeight("bold");    
+    // Freeze the first row
+    sheet.setFrozenRows(1);   
+    // Set the width of column A to 500
+    sheet.setColumnWidth(1, 500);
+    // Set the decimal places for conversions & conversion value to 1 decimal place
+    sheet.getRange(2, 5, sheet.getLastRow()).setNumberFormat("0.0");  // conversions in col 5
+    sheet.getRange(2, 6, sheet.getLastRow()).setNumberFormat("0.0");  // conversion value in col 6
+}
+
+function formatCampaignIdSheet(sheet) {
+    // Bold the first row
+    sheet.getRange(1, 1, 1, sheet.getLastColumn()).setFontWeight("bold");    
+    // Freeze the first row
+    sheet.setFrozenRows(1);   
+    // Set the width of column A to 500
+    sheet.setColumnWidth(1, 500);
+    // Set the decimal places for conversions & conversion value to 1 decimal place
+    sheet.getRange(2, 4, sheet.getLastRow()).setNumberFormat("0.0");  // conversions in col 4
+    sheet.getRange(2, 5, sheet.getLastRow()).setNumberFormat("0.0");  // conversion value in col 5
+}
+
+function main() {
+
+    // Add the additional filter if pmaxOnly is true
+    let performanceMaxFilter = pmaxOnly ? ' AND campaign.advertising_channel_type = "PERFORMANCE_MAX" ' : '';
+
+    // 1. Extract Campaign IDs with Status not 'REMOVED' and impressions > 0
+    let campaignIdsQuery = AdsApp.report(
+        `
+        SELECT 
+          campaign.id, 
+          campaign.name, 
+          metrics.clicks, 
+          metrics.impressions, 
+          metrics.conversions, 
+          metrics.conversions_value
+        FROM 
+          campaign
+        WHERE 
+          campaign.status != 'REMOVED'
+          AND metrics.impressions > 0
+          AND segments.date DURING LAST_30_DAYS
+        ORDER BY 
+          metrics.conversions DESC
+        `
+    );
+    
+    let campaignIds = [];
+    let rows = campaignIdsQuery.rows();
+
+    // Create or clear 'campaigns' sheet
+    let campaignsSheet = ss.getSheetByName('campaigns');
+    if (!campaignsSheet) {
+        campaignsSheet = ss.insertSheet('campaigns');
+    } else {
+        campaignsSheet.clear();
+    }
+    campaignsSheet.appendRow(['Campaign Name', 'Campaign ID', 'Clicks', 'Impressions', 'Conversions', 'Conversion Value']);
+
+    while (rows.hasNext()) {
+        let row = rows.next();
+        campaignIds.push(row['campaign.id']);
+        campaignsSheet.appendRow([row['campaign.name'], row['campaign.id'], row['metrics.clicks'], row['metrics.impressions'], row['metrics.conversions'], row['metrics.conversions_value']]);
+    }
+
+    // Format the 'campaigns' sheet
+    formatCampaignsSheet(campaignsSheet);
+
+    // 2. Process each Campaign ID
+    for (let i = 0; i < campaignIds.length; i++) {
+        let campaignId = campaignIds[i];
+
+        // Check if sheet/tab exists with the name of the Campaign ID
+        let sheet = ss.getSheetByName(campaignId);
+        if (!sheet) {
+            // If not, create a new sheet/tab with the name as the Campaign ID
+            sheet = ss.insertSheet(campaignId);
+        }
+
+        // Fetch search terms and related metrics for the campaign ordered by conversions descending
+        let query = AdsApp.report(
+            `
+            SELECT 
+              campaign_search_term_insight.category_label, 
+              metrics.clicks, 
+              metrics.impressions, 
+              metrics.conversions,
+              metrics.conversions_value
+            FROM 
+              campaign_search_term_insight 
+            WHERE 
+              segments.date DURING LAST_30_DAYS 
+              AND campaign_search_term_insight.campaign_id = '${campaignId}'
+            ORDER BY 
+              metrics.conversions DESC
+            `
+        );
+
+        // Export the results to the sheet/tab with the name of the Campaign ID
+        query.exportToSheet(sheet);
+
+        // Format the individual campaign sheet
+        formatCampaignIdSheet(sheet);
+    }
+}
