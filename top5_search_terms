@@ -1,15 +1,25 @@
 // Copyright Mike Rhodes 2023 - See MikeRhodes.com.au for more scripts, ideas & training (mostly for free)
 
-// FIRST: Copy this template sheet & then grab the url of YOUR sheet & enter it in SHEET_URL variable
+// FIRST: Copy this template sheet & then grab the url of YOUR sheet & enter it in SHEET_URL variable below
 // template sheet is: https://docs.google.com/spreadsheets/d/134mp9h868JSmwntWG_R_s5Up7d_oH1eKSLvBv0BtcIM/copy
 
-// User Configuration Section
-let SHEET_URL  = '' ;   // your sheet url - copy the template
-let clientCode = '' ;   // this string will be added to the sheet name 
-let numDays    = 90 ;   // enter the number of days you'd like the search term report for eg 7 or 30 or 90 or 365
+// User Configuration Section - 
+// Please add a sheet url, 
+// a client code (optional), 
+// the number of days you want data for 
+// & the number of terms you'd like to chart (ideally from 3 to 10)
+
+let SHEET_URL  = '';   // your sheet url - copy the template sheet above first
+
+let clientCode = ''    // this string will be added to the start of your sheet name 
+
+let numDays    = 90    // enter the number of days you'd like the search term data for, eg 7 or 30 or 90 or 365
+
+let numTerms   = 10    // enter the number of search terms you'd like to fetch for each campaign - ideally 3 to 10 (10 is the max you can chart)
 
 
-//
+
+// ======================================
 // Don't change the code below this line.
 // ======================================
 
@@ -18,7 +28,6 @@ let accountName = AdsApp.currentAccount().getName();
 
 // If clientCode is empty, use the account name; otherwise, use clientCode
 let sheetNameIdentifier = clientCode ? clientCode : accountName;
-
 let ss = SpreadsheetApp.openByUrl(SHEET_URL);
 ss.rename(sheetNameIdentifier + ' - Top 5 Search Term Data - MikeRhodes.com.au');
 
@@ -40,9 +49,9 @@ function outputSummaryToNewTab(summaryData) {
   } else {
     summarySheet = ss.insertSheet('summaryData');
   }
-  summarySheet.appendRow(['Campaign Name', 'Total Cost', 'Cost of Top 5 Terms', 'Total Impr', 'Impr for Top 5 Terms']);
+  summarySheet.appendRow(['Campaign Name', 'Total Cost', 'Cost of Top Terms', 'Total Impr', 'Impr for Top Terms']);
   for (let campaign in summaryData) {
-    summarySheet.appendRow([campaign, summaryData[campaign].totalCost, summaryData[campaign].top5TermsCost, summaryData[campaign].totalImpressions, summaryData[campaign].top5TermsImpressions]);
+    summarySheet.appendRow([campaign, summaryData[campaign].totalCost, summaryData[campaign].topTermsCost, summaryData[campaign].totalImpressions, summaryData[campaign].topTermsImpressions]);
   }
 }
 
@@ -91,9 +100,9 @@ function main() {
     // Initialize summary data for the campaign
     summaryData[row['campaign.name']] = {
       totalCost: row['metrics.cost_micros'] / 1000000, // Convert cost from micros to currency
-      top5TermsCost: 0,
+      topTermsCost: 0,
       totalImpressions: row['metrics.impressions'],
-      top5TermsImpressions: 0
+      topTermsImpressions: 0
     };
   }
 
@@ -114,7 +123,7 @@ function main() {
         AND campaign.id = ${campaignId}
       ORDER BY 
         metrics.cost_micros DESC
-      LIMIT 5
+      LIMIT ${numTerms}
     `;
     let topSearchTermsIterator = AdsApp.search(topSearchTermsQuery);
     let topSearchTerms = [];
@@ -170,8 +179,8 @@ function main() {
           ]);
 
       // Update the running total for the top 5 search terms for the campaign
-      summaryData[campaignName].top5TermsCost += cost;
-      summaryData[campaignName].top5TermsImpressions += Number(impressions);
+      summaryData[campaignName].topTermsCost += cost;
+      summaryData[campaignName].topTermsImpressions += Number(impressions);
       }
     }
 
