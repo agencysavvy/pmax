@@ -55,6 +55,12 @@ function outputSummaryToNewTab(summaryData) {
   }
 }
 
+// Function to clean up strings
+function sanitizeString(str){
+    return str.replace(/[^\w\s]/gi, '');
+}
+
+
 function main() {
   
   // Initialize an object to store the summary data
@@ -130,12 +136,12 @@ function main() {
 
     while (topSearchTermsIterator.hasNext()) {
       let row = topSearchTermsIterator.next();
-      let searchTerm = row.searchTermView.searchTerm;
+      let searchTerm = sanitizeString(row.searchTermView.searchTerm);
       topSearchTerms.push(searchTerm);
     }
     
     for (let i = 0; i < topSearchTerms.length; i++) {
-      let searchTerm = topSearchTerms[i];
+      let searchTerm = sanitizeString(topSearchTerms[i]);
       let termQuery = `
         SELECT 
           segments.date,
