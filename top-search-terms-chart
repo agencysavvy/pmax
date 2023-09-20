@@ -1,0 +1,197 @@
+// Copyright Mike Rhodes 2023 - See MikeRhodes.com.au for more scripts, ideas & training (mostly for free)
+
+// FIRST: Copy this template sheet & then grab the url of YOUR sheet & enter it between the quotes in SHEET_URL variable below
+// template sheet is: https://docs.google.com/spreadsheets/d/134mp9h868JSmwntWG_R_s5Up7d_oH1eKSLvBv0BtcIM/copy
+
+// User Configuration Section - Please add
+// your sheet url (copy the template above)
+// add a client code (optional) which will be added to your sheet name, 
+// the number of days you want data for, 
+// & the number of terms you'd like to chart (ideally from 3 to 10)
+
+let SHEET_URL  = ''    // your sheet url between the single quotes - copy the template sheet above first
+
+let clientCode = ''    // this string will be added to the start of your sheet name 
+
+let numDays    = 90    // enter the number of days you'd like the search term data for, eg 7 or 30 or 90 or 365
+
+let numTerms   = 5     // enter the number of search terms you'd like to fetch for each campaign - ideally 3 to 10 (10 is the max you can chart)
+
+
+
+// ======================================
+// Don't change the code below this line.
+// ======================================
+
+// Get the name of the current Google Ads account
+let accountName = AdsApp.currentAccount().getName();
+
+// If clientCode is empty, use the account name; otherwise, use clientCode
+let sheetNameIdentifier = clientCode ? clientCode : accountName;
+let ss = SpreadsheetApp.openByUrl(SHEET_URL);
+ss.rename(sheetNameIdentifier + ' - Top Search Terms Chart - MikeRhodes.com.au');
+
+// Get the time zone of the current Google Ads account
+let timeZone = AdsApp.currentAccount().getTimeZone();
+
+// Calculate date range based on numDays
+let today = new Date();
+let startDate = new Date();
+startDate.setDate(today.getDate() - numDays);
+let formattedStart = Utilities.formatDate(startDate, timeZone, "yyyyMMdd");
+let formattedToday = Utilities.formatDate(today, timeZone, "yyyyMMdd");
+
+// Function to output summary to a new tab
+function outputSummaryToNewTab(summaryData) {
+  let summarySheet = ss.getSheetByName('summaryData');
+  if (summarySheet) {
+    summarySheet.clear();
+  } else {
+    summarySheet = ss.insertSheet('summaryData');
+  }
+  summarySheet.appendRow(['Campaign Name', 'Total Cost', 'Cost of Top Terms', 'Total Impr', 'Impr for Top Terms']);
+  for (let campaign in summaryData) {
+    summarySheet.appendRow([campaign, summaryData[campaign].totalCost, summaryData[campaign].topTermsCost, summaryData[campaign].totalImpressions, summaryData[campaign].topTermsImpressions]);
+  }
+}
+
+function main() {
+  
+  // Initialize an object to store the summary data
+  let summaryData = {};
+  
+  let baseQuery = `
+        SELECT 
+          campaign.id, 
+          campaign.name, 
+          metrics.clicks, 
+          metrics.impressions, 
+          metrics.cost_micros,
+          metrics.conversions,
+          metrics.conversions_value
+        FROM 
+          campaign
+        WHERE 
+          campaign.status != 'REMOVED'
+          AND campaign.advertising_channel_type = 'SEARCH'
+          AND metrics.impressions > 0
+          AND segments.date BETWEEN "${formattedStart}" AND "${formattedToday}"
+        ORDER BY 
+          metrics.cost_micros DESC
+  `;
+  
+  let campaignIdsQuery = AdsApp.report(baseQuery);
+  let campaignData = [];
+  let rows = campaignIdsQuery.rows();
+
+  let rawSheet = ss.getSheetByName('raw');
+  if (!rawSheet) {
+    rawSheet = ss.insertSheet('raw');
+    rawSheet.appendRow(['Date', 'Campaign Name', 'Search Term', 'Clicks', 'Impressions', 'Conversions', 'Conversion Value', 'Cost']);
+  } else {
+    rawSheet.clear();
+    rawSheet.appendRow(['Date', 'Campaign Name', 'Search Term', 'Clicks', 'Impressions', 'Conversions', 'Conversion Value', 'Cost']);
+  }
+
+  while (rows.hasNext()) {
+    let row = rows.next();
+    campaignData.push({id: row['campaign.id'], name: row['campaign.name'], cost_micros: row['metrics.cost_micros'], impressions: row['metrics.impressions']});
+    
+    // Initialize summary data for the campaign
+    summaryData[row['campaign.name']] = {
+      totalCost: row['metrics.cost_micros'] / 1000000, // Convert cost from micros to currency
+      topTermsCost: 0,
+      totalImpressions: row['metrics.impressions'],
+      topTermsImpressions: 0
+    };
+  }
+
+  for (let i = 0; i < campaignData.length; i++) {
+    let campaignId = campaignData[i].id;
+    let campaignName = campaignData[i].name;
+
+    let allTermData = [];
+
+    let topSearchTermsQuery = `
+      SELECT 
+        search_term_view.search_term,
+        metrics.cost_micros
+      FROM 
+        search_term_view 
+      WHERE 
+        segments.date BETWEEN "${formattedStart}" AND "${formattedToday}"
+        AND campaign.id = ${campaignId}
+      ORDER BY 
+        metrics.cost_micros DESC
+      LIMIT ${numTerms}
+    `;
+    let topSearchTermsIterator = AdsApp.search(topSearchTermsQuery);
+    let topSearchTerms = [];
+
+    while (topSearchTermsIterator.hasNext()) {
+      let row = topSearchTermsIterator.next();
+      let searchTerm = row.searchTermView.searchTerm;
+      topSearchTerms.push(searchTerm);
+    }
+    
+    for (let i = 0; i < topSearchTerms.length; i++) {
+      let searchTerm = topSearchTerms[i];
+      let termQuery = `
+        SELECT 
+          segments.date,
+          search_term_view.search_term, 
+          metrics.clicks, 
+          metrics.impressions, 
+          metrics.conversions,
+          metrics.conversions_value,
+          metrics.cost_micros
+        FROM 
+          search_term_view
+        WHERE 
+          segments.date BETWEEN "${formattedStart}" AND "${formattedToday}"
+          AND campaign.id = '${campaignId}'
+          AND search_term_view.search_term = '${searchTerm}'
+        ORDER BY 
+          segments.date ASC
+      `;
+ 
+      let termIterator = AdsApp.search(termQuery);
+      while (termIterator.hasNext()) {
+          let row = termIterator.next();
+          let dateSegment = row.segments && row.segments.date;
+          let searchTerm = row.searchTermView && row.searchTermView.searchTerm;
+          let clicks = row.metrics && row.metrics.clicks;
+          let impressions = row.metrics && row.metrics.impressions;
+          let conversions = row.metrics && row.metrics.conversions;
+          let conversionsValue = row.metrics && row.metrics.conversionsValue;
+          let costMicros = row.metrics && row.metrics.costMicros;
+          let cost = costMicros / 1000000;  // Convert cost from micros to currency
+
+          allTermData.push([
+              dateSegment, 
+              campaignName,
+              searchTerm, 
+              clicks, 
+              impressions, 
+              conversions, 
+              conversionsValue, 
+              cost
+          ]);
+
+      // Update the running total for the top 5 search terms for the campaign
+      summaryData[campaignName].topTermsCost += cost;
+      summaryData[campaignName].topTermsImpressions += Number(impressions);
+      }
+    }
+
+    if (allTermData.length > 0) {
+      rawSheet.getRange(rawSheet.getLastRow() + 1, 1, allTermData.length, 8).setValues(allTermData);
+    }
+  }
+  
+  // Output summary data to a new tab
+  outputSummaryToNewTab(summaryData);  
+
+}
+
+main();
