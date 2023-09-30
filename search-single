@@ -1,0 +1,98 @@
+// -------------------------
+// User Configuration Section
+// -------------------------
+// Please enter your spreadsheet URL between the quotes below.
+
+let ss = SpreadsheetApp.openByUrl('');
+
+
+// Don't change code below this line ----------------------------------------------------------
+
+function main() {
+  extractTerms()
+}
+
+function extractTerms() {
+    // Extract Campaign IDs with Status not 'REMOVED' and impressions > 0
+    let campaignIdsQuery = AdsApp.report(`
+        SELECT campaign.id, campaign.name, 
+        metrics.clicks, metrics.impressions, 
+        metrics.conversions, metrics.conversions_value
+        FROM campaign
+        WHERE campaign.status != 'REMOVED'
+        AND metrics.impressions > 0
+        AND segments.date DURING LAST_30_DAYS
+        ORDER BY metrics.conversions DESC
+        `);
+    
+    let rows = campaignIdsQuery.rows();   
+    let allSearchTerms = [['Campaign Name', 'Campaign ID', 'Category Label', 'Clicks', 'Impressions', 'Conversions', 'Conversion Value']];
+
+    while (rows.hasNext()) {
+        let row = rows.next();
+        
+        // Fetch search terms and related metrics for the campaign ordered by conversions descending
+        let query = AdsApp.report(`
+            SELECT 
+            campaign_search_term_insight.category_label, 
+            metrics.clicks, 
+            metrics.impressions, 
+            metrics.conversions,
+            metrics.conversions_value
+            FROM campaign_search_term_insight 
+            WHERE 
+            segments.date DURING LAST_30_DAYS 
+            AND campaign_search_term_insight.campaign_id = ${row['campaign.id']}
+            ORDER BY metrics.impressions DESC
+            `);
+        
+        let searchTermRows = query.rows();
+        while (searchTermRows.hasNext()) {
+            let searchTermRow = searchTermRows.next();
+            allSearchTerms.push([row['campaign.name'], row['campaign.id'], 
+                                 searchTermRow['campaign_search_term_insight.category_label'],
+                                 searchTermRow['metrics.clicks'], 
+                                 searchTermRow['metrics.impressions'], 
+                                 searchTermRow['metrics.conversions'], 
+                                 searchTermRow['metrics.conversions_value']]);
+        }
+    }
+
+    // Write all search terms to the 'terms' sheet 
+    let termsSheet = ss.getSheetByName('terms') ? ss.getSheetByName('terms').clear() : ss.insertSheet('terms');
+    termsSheet.getRange(1, 1, allSearchTerms.length, allSearchTerms[0].length).setValues(allSearchTerms);
+
+    // Aggregate terms and write to the 'totalTerms' sheet
+    aggregateTerms(allSearchTerms);
+}
+
+function aggregateTerms(searchTerms) {
+    let aggregated = {}; // { term: { clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }, ... }
+
+    for (let i = 1; i < searchTerms.length; i++) { // Start from 1 to skip headers
+        let term = searchTerms[i][2] || 'blank'; // Use 'blank' for empty search terms
+
+        if (!aggregated[term]) {
+            aggregated[term] = { clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 };
+        }
+
+        aggregated[term].clicks += Number(searchTerms[i][3]);
+        aggregated[term].impressions += Number(searchTerms[i][4]);
+        aggregated[term].conversions += Number(searchTerms[i][5]);
+        aggregated[term].conversionValue += Number(searchTerms[i][6]);
+    }
+
+    let aggregatedArray = [['Category Label', 'Clicks', 'Impressions', 'Conversions', 'Conversion Value']];
+    for (let term in aggregated) {
+        aggregatedArray.push([term, aggregated[term].clicks, aggregated[term].impressions, aggregated[term].conversions, aggregated[term].conversionValue]);
+    }
+
+    let header = aggregatedArray.shift(); // Remove the header before sorting
+    // Sort by impressions descending
+    aggregatedArray.sort((a, b) => b[2] - a[2]);
+    aggregatedArray.unshift(header); // Prepend the header back to the top
+
+    // Write aggregated data to the 'totalTerms' sheet
+    let totalTermsSheet = ss.getSheetByName('totalTerms') ? ss.getSheetByName('totalTerms').clear() : ss.insertSheet('totalTerms');
+    totalTermsSheet.getRange(1, 1, aggregatedArray.length, aggregatedArray[0].length).setValues(aggregatedArray);
+}
