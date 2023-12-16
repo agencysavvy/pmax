@@ -1,13 +1,27 @@
-// v28 - additional 180 day product data on new tab r_prod_t_180
-// cmake a copy https://docs.google.com/spreadsheets/d/1aGOBOLNUjEIwwlYuS0D3fcIimRnzGdLSJxVd9rHOQ0E/copy
+// if you find the script helpful - please consider voting for me in the top PPC survey 
+// here: https://www.ppcsurvey.com/
+
+// thanks
+
+// want the paid version? head to www.mikerhodes.com.au
+// or buy it here: https://mikerhodes.circle.so/checkout/latest-script
+// it does everything the free script does, plus much more
+// and includes free updates, support, some training & more
+
+// v28 (free - does not include support)
+// make a copy https://docs.google.com/spreadsheets/d/1aGOBOLNUjEIwwlYuS0D3fcIimRnzGdLSJxVd9rHOQ0E/copy
 
 function main() {
   let ss = SpreadsheetApp.openByUrl(''); //  v28
   let zombieDays = 366 // how many days data do you want to use to identify zombie (0 click) products?
   let prodDays = 181 // how many days data do you want to use to identify 'long range' products?  
-  
-// don’t change any code below this line ——————————————————————————
-  
+
+
+
+// don’t change any code below this line ——————————————————————————————————————————————————————————————————————————————
+
+
+
   // define query elements. wrap with spaces for safety
   let impr        = ' metrics.impressions ';
   let clicks      = ' metrics.clicks ';
