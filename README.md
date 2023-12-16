@@ -1,5 +1,11 @@
 
-# this is a script to add to a single google ads account to get more visibility over any performance max campaigns running
+# this is a free script to add to a single google ads account to get more visibility over any performance max campaigns running
+
+Note there is now a paid version that does a lot more.
+And a paid MCC version that allows you to create the 'insights sheet' for dozens of accounts at once.
+
+And if you find the script helpful - please consider voting for me in the top PPC survey here: https://www.ppcsurvey.com/
+
 
 If you've never used a script, don't worry it's just cut & paste. 
 Here's a quick video to walk you through the process
