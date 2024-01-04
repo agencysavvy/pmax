@@ -1,7 +1,3 @@
-// if you find the script helpful - please consider voting for me in the top PPC survey 
-// here: https://www.ppcsurvey.com/
-
-// thanks
 
 // want the paid version? head to www.mikerhodes.com.au
 // or buy it here: https://mikerhodes.circle.so/checkout/latest-script
@@ -9,12 +5,12 @@
 // and includes free updates, support, some training & more
 
 // v28 (free - does not include support)
-// make a copy https://docs.google.com/spreadsheets/d/1aGOBOLNUjEIwwlYuS0D3fcIimRnzGdLSJxVd9rHOQ0E/copy
+// make a copy of this template sheet first & copy your URL into the ss variable on line 11. template: https://docs.google.com/spreadsheets/d/1aGOBOLNUjEIwwlYuS0D3fcIimRnzGdLSJxVd9rHOQ0E/copy
 
 function main() {
-  let ss = SpreadsheetApp.openByUrl(''); //  v28
-  let zombieDays = 366 // how many days data do you want to use to identify zombie (0 click) products?
-  let prodDays = 181 // how many days data do you want to use to identify 'long range' products?  
+  let ss = SpreadsheetApp.openByUrl(''); 
+  let zombieDays = 366   // how many days data do you want to use to identify zombie (0 click) products?
+  let prodDays = 181   /  / how many days data do you want to use to identify 'long range' products?  
 
 
 
@@ -40,11 +36,6 @@ function main() {
   let prodC2      = ' segments.product_custom_attribute2 ';
   let prodC3      = ' segments.product_custom_attribute3 ';
   let prodC4      = ' segments.product_custom_attribute4 '; 
-  let prodT1      = ' segments.product_type_l1 ';
-  let prodT2      = ' segments.product_type_l2 ';
-  let prodT3      = ' segments.product_type_l3 ';
-  let prodT4      = ' segments.product_type_l4 ';
-  let prodT5      = ' segments.product_type_l5 ';
   let campName    = ' campaign.name ';
   let chType      = ' campaign.advertising_channel_type ';
   let adgName     = ' ad_group.name ';
