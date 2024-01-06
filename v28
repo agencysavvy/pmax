@@ -10,7 +10,7 @@
 function main() {
   let ss = SpreadsheetApp.openByUrl(''); 
   let zombieDays = 366   // how many days data do you want to use to identify zombie (0 click) products?
-  let prodDays = 181   /  / how many days data do you want to use to identify 'long range' products?  
+  let prodDays = 181     // how many days data do you want to use to identify 'long range' products?  
 
 
 
